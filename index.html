@@ -1,0 +1,283 @@
+<html>
+    <head>
+        <title>thief</title>
+    </head>
+    <body onload="doatload()">
+        <canvas id="c1" width="400" height="500"></canvas>
+        <div id="score" style="position:absolute;top:100px;left:600px;font-family:'Myriad Pro';font-size:3em;text-align:center;"></div>
+        <img id="img0" src="runpose0.png" style="display:none"/>
+        <img id="img1" src="runpose1.png" style="display:none" />
+        <img id="firzen_run" src="firzen_run.png" style="display:none" />
+        <img id="firzen_jump" src="firzen_jump.png" style="display:none" />
+        <img id="firzen_jump_roll" src="firzen_jump_roll.png" style="display:none" />
+        <img id="firzen_jump_roll1" src="firzen_jump_roll1.png" style="display:none" />
+        <img id="firzen_death" src="firzen_death.png" style="display:none" />
+    </body>
+    <script>
+        var c = document.getElementById("c1");
+        var ctx = c.getContext("2d");
+        var img0 = document.getElementById("img0");
+        var img1 = document.getElementById("img1");
+        var firzen_run = document.getElementById("firzen_run");
+        var firzen_jump = document.getElementById("firzen_jump");
+        var firzen_jump_coord = { left0: 0, top0: 0, left1: 90, top1: 0, left2: 162, top2: 0, width: 74, height: 80 };
+        var firzen_jump_roll = document.getElementById("firzen_jump_roll");
+        var firzen_jump_roll_coord = { left0: 0, top0: 0, left1: 74, top1: 0, left2: 148, top2: 0, left3: 222, top3: 0, width: 74, height: 80 };
+        var firzen_jump_roll1 = document.getElementById("firzen_jump_roll1");
+        var firzen_death = document.getElementById("firzen_death");
+        var player = { left: 100, top: 100, prevleft: 0, prevtop: 0, rad: 10, color: "black", vx: 0, vy: 0.1, jumpcount: 0, collision: 0, runtimer: 0, jumptimer: 0, runpose: 0, jumppose: 0, animspeed: 0.24 };
+        var gamestart = 0;
+        var gameover = 0;
+        var objectvel = -3;
+        var lineargrad = ctx.createLinearGradient(-100, 0, 500, 0);
+        lineargrad.addColorStop(0, "white");
+        lineargrad.addColorStop(1, "black");
+        var objectbottom = [{ left: 0, top: 350, prevleft: 0, width: 400, height: 250, color: lineargrad, vx: objectvel, vy: 0 },
+                            { left: 525, top: 350, prevleft: 725, width: 200, height: 250, color: "cyan", vx: objectvel, vy: 0 },
+                            { left: 900, top: 250, prevleft: 1100, width: 250, height: 550, color: "red", vx: objectvel, vy: 0 }];
+        var objecttop = [{ left: 0, top: 0, prevleft: 0, width: 0, height: 0, color: lineargrad, vx: objectvel, vy: 0 },
+                         { left: 525, top: 0, prevleft: 525, width: 200, height: 250, color: "cyan", vx: objectvel, vy: 0 },
+                         { left: 900, top: 0, prevleft: 900, width: 250, height: 150, color: "red", vx: objectvel, vy: 0 }];
+        var templeft, temptop, tempwidth, tempcolor;
+        var gravity = 0.4;
+        var score = 0;
+        var scoreplate = 0;
+        var timer = 0;
+        function doatload() {
+            resetstuff();
+
+            document.body.addEventListener("keydown", jump, false);
+
+            draw();
+        }
+
+        function resetstuff() {
+            player = { left: 100, top: 100, prevleft: 0, prevtop: 0, rad: 10, color: lineargrad, vx: 0, vy: 0.1, jumpcount: 0, collision: 0, runtimer: 0, jumptimer: 0, runpose: 0, animspeed: 0.24 };
+            objectbottom = [{ left: 0, top: 350, prevleft: 0, width: 400, height: 250, color: lineargrad, vx: objectvel, vy: 0 },
+                            { left: 525, top: 350, prevleft: 725, width: 200, height: 250, color: "cyan", vx: objectvel, vy: 0 },
+                            { left: 900, top: 250, prevleft: 1100, width: 250, height: 550, color: "red", vx: objectvel, vy: 0 }];
+            objecttop = [{ left: 0, top: 0, prevleft: 0, width: 0, height: 0, color: lineargrad, vx: objectvel, vy: 0 },
+                         { left: 525, top: 0, prevleft: 525, width: 200, height: 250, color: "cyan", vx: objectvel, vy: 0 },
+                         { left: 900, top: 0, prevleft: 900, width: 250, height: 150, color: "red", vx: objectvel, vy: 0 }];
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, 500, 500);
+
+            if (gameover == 0) {
+                if (gamestart == 1)
+                    addobjectvel();
+
+                detecthorizontalcollision();
+
+                detectverticalcollison();
+
+                detectedgecollision();
+            }
+
+            drawobjects();
+
+            drawplayer();            
+
+            addplayervel();
+            
+            showscore();
+            
+            timer++;
+
+            
+
+            requestAnimationFrame(draw);
+        }
+
+        function drawplayer() {
+            //ctx.beginPath();
+            //ctx.arc(player.left, player.top, player.rad, 0, 2 * Math.PI);
+            //ctx.fillStyle = "cyan";                                     // player collision tracker
+            //ctx.fill();
+            //ctx.closePath();
+
+            if (gameover == 0) {
+                if (player.runtimer == Math.floor(player.runtimer))
+                    player.runpose = player.runtimer % 3;              // for firzen runpose
+                if (player.vy != 0) {
+                    player.jumptimer++;
+                    if (player.jumptimer >= 20) player.jumptimer = 0;
+                    player.jumppose = Math.floor(player.jumptimer / 5);       // jumppose only if noy using rotate canvas                 
+                }
+
+
+                if (player.vy == 0) {  // if running
+                    ctx.drawImage(firzen_run, (player.runpose) * 80, 0, 80, 75, player.left - player.rad - 10, player.top - player.rad - 15, 40, 37.5);   // for firzen
+                }
+                else {                        // if jumping
+                    //stand type animation
+                    //ctx.drawImage(firzen_jump, firzen_jump_coord.left0, firzen_jump_coord.top0, firzen_jump_coord.width, firzen_jump_coord.height, player.left - player.rad, player.top - player.rad - 20, 40, 37.5); // for firzen
+
+                    //roll type animation
+                    //if (player.jumppose == 0)
+                    //    ctx.drawImage(firzen_jump_roll, firzen_jump_roll_coord.left0, firzen_jump_roll_coord.top0, firzen_jump_roll_coord.width, firzen_jump_roll_coord.height, player.left - player.rad - 15, player.top - player.rad - 20, 40, 37.5);
+                    //else if (player.jumppose == 1)
+                    //    ctx.drawImage(firzen_jump_roll, firzen_jump_roll_coord.left1, firzen_jump_roll_coord.top1, firzen_jump_roll_coord.width, firzen_jump_roll_coord.height, player.left - player.rad - 15, player.top - player.rad - 20, 40, 37.5);
+                    //else if (player.jumppose == 2)
+                    //    ctx.drawImage(firzen_jump_roll, firzen_jump_roll_coord.left2, firzen_jump_roll_coord.top2, firzen_jump_roll_coord.width, firzen_jump_roll_coord.height, player.left - player.rad - 15, player.top - player.rad - 20, 40, 37.5);
+                    //else if (player.jumppose == 3)
+                    //    ctx.drawImage(firzen_jump_roll, firzen_jump_roll_coord.left3, firzen_jump_roll_coord.top3, firzen_jump_roll_coord.width, firzen_jump_roll_coord.height, player.left - player.rad - 15, player.top - player.rad - 20, 40, 37.5);
+
+                    // roll type with just single frame rotate canvas
+                    ctx.save();
+                    ctx.translate(player.left, player.top);
+                    ctx.rotate((player.jumptimer / 5) * (Math.PI / 2));
+                    ctx.drawImage(firzen_jump_roll1, -player.rad - 3, -player.rad - 3, 25, 25); // mind the offsets , it is not properly calibrated
+                    ctx.restore();
+                }
+
+                if (Math.floor(player.runtimer) < player.runtimer && Math.floor(player.runtimer + player.animspeed) == Math.ceil(player.runtimer))
+                    player.runtimer = Math.floor(player.runtimer + player.animspeed);                  // player's run timer setting to make it equal to integers although being added by any factor
+                else
+                    player.runtimer += player.animspeed;
+            }
+            else {
+                ctx.drawImage(firzen_death, player.left - 10, player.top - 10, 40, 37.5);
+            }
+        }
+
+        function drawobjects() {
+            for (var i = 0; i < objectbottom.length; i++) {
+                ctx.beginPath();
+                ctx.fillStyle = objectbottom[i].color;
+                ctx.fillRect(objectbottom[i].left, objectbottom[i].top, objectbottom[i].width, objectbottom[i].height);
+                ctx.beginPath();
+                ctx.fillRect(objecttop[i].left, objecttop[i].top, objecttop[i].width, objecttop[i].height);
+            }
+            lineargrad = ctx.createLinearGradient(-100 - 3*timer, 0, 500 - 3*timer, 0);
+            lineargrad.addColorStop(0, "white");
+            lineargrad.addColorStop(1, "black");
+        }
+
+        function addplayervel() {
+            player.prevleft = player.left;
+            player.prevtop = player.top;
+            player.left += Math.floor(player.vx);
+            player.top += Math.floor(player.vy);
+            player.vy += gravity;
+            if (player.top >= 550) {
+                gameover = 1;
+            }
+            if (gameover == 1) {
+                // write code to show score and new game 
+            }
+        }
+
+        function addobjectvel() {
+            for (var i = 0; i < objectbottom.length; i++) {
+                objectbottom[i].prevleft = objectbottom[i].left;
+                objectbottom[i].left += objectbottom[i].vx;
+                objectbottom[i].top += objectbottom[i].vy;
+                objecttop[i].prevleft = objecttop[i].left;
+                objecttop[i].left += objecttop[i].vx;
+                objecttop[i].top += objecttop[i].vy;
+            }
+            if (objectbottom[0].left <= -objectbottom[0].width) {
+                for (var i = 0; i < objectbottom.length - 1; i++) {
+                    objectbottom[i] = objectbottom[i + 1];
+                    objecttop[i] = objecttop[i + 1];
+                }
+                scoreplate--;
+
+                templeft = objectbottom[1].left + objectbottom[1].width + 100 + Math.ceil(100 * Math.random());
+                temptop = (objectbottom[1].top) + Math.ceil(320 * Math.random() - 160);
+                while (temptop <= 100 || temptop >= 400) {
+                    temptop = (objectbottom[1].top) + Math.ceil(400 * Math.random() - 200);
+                }
+                tempwidth = 100 + Math.ceil(100 * Math.random());
+                tempcolor = "hsl(" + (360 * Math.random()) + ",100%,50%)";
+                objectbottom[2] = { left: templeft, top: temptop, prevleft: templeft, width: tempwidth, height: (750 - temptop), color: tempcolor, vx: objectvel, vy: 0 };
+                objecttop[2] = { left: templeft, top: 0, prevleft: templeft, width: tempwidth, height: (temptop - 100), color: tempcolor, vx: objectvel, vy: 0 };
+            }
+        }
+
+        function detecthorizontalcollision() {
+            for (var i = 0; i < objectbottom.length; i++) {
+                if ((player.top + player.rad) >= objectbottom[i].top && (player.top - player.rad) <= (objectbottom[i].top + objectbottom[i].height)) {
+                    if ((player.left + player.rad) <= (objectbottom[i].prevleft) && (player.left + player.rad) >= (objectbottom[i].left)) {
+                        over();
+                    }
+                }
+                if ((player.top + player.rad) >= objecttop[i].top && (player.top - player.rad) <= (objecttop[i].top + objecttop[i].height)) {
+                    if ((player.left + player.rad) <= (objecttop[i].prevleft) && (player.left + player.rad) >= (objecttop[i].left)) {
+                        over();
+                    }
+                }
+                else {
+                    player.collision = 0;
+                }
+            }
+        }
+
+        function detectverticalcollison() {
+            for (var i = 0; i < objectbottom.length; i++) {
+                if (player.left >= objectbottom[i].left && player.left <= (objectbottom[i].left + objectbottom[i].width)) {
+                    if ((player.prevtop + player.rad) <= objectbottom[i].top && (player.top + player.rad) >= objectbottom[i].top) {
+                        player.collision = 1;
+                        player.jumpcount = 0;
+                        player.jumptimer = 0;
+                        player.top = objectbottom[i].top - player.rad;
+                        player.vy = 0;
+                        if (scoreplate != i) {
+                            scoreplate = i;
+                            score++;
+                        }
+
+                        break;
+                    }
+                    else if ((player.prevtop - player.rad) >= (objecttop[i].top + objecttop[i].height) && (player.top - player.rad) <= (objecttop[i].top + objecttop[i].height)) {
+                        over();
+                    }
+                    else {
+                        player.collision = 0;
+                    }
+                }
+            }
+        }
+
+        function detectedgecollision() {
+            for (var i = 0; i < objectbottom.length; i++) {
+                var dist = Math.sqrt((player.left - objectbottom[i].left) * (player.left - objectbottom[i].left) + (player.top - objectbottom[i].top) * (player.top - objectbottom[i].top));
+                if (dist <= player.rad) {
+                    over();
+                }
+                dist = Math.sqrt((player.left - objecttop[i].left) * (player.left - objecttop[i].left) + (player.top - (objecttop[i].top + objecttop[i].height)) * (player.top - (objecttop[i].top + objecttop[i].height)));
+                if (dist <= player.rad) {
+                    over();
+                }
+            }
+        }
+
+        function showscore() {
+            document.getElementById("score").innerHTML = "Score<br>" + score;
+            if (gameover == 1)
+                document.getElementById("score").innerHTML += "<br>Game Over";
+        }
+
+        function over() {
+            gameover = 1;
+            player.vx = -1;
+            player.vy = -2;
+            player.color = "red";
+            document.body.removeEventListener("keydown", jump, false);
+        }
+
+        function jump(event) {
+            if (event.keyCode == "32") {
+                if (gamestart == 0)
+                    gamestart = 1;
+                if (player.jumpcount < 2) {
+                    player.top -= 1;                    // this awesome effing idea
+                    player.vy = -8;
+                    player.jumpcount++;
+                }
+            }
+        }        
+    </script>
+</html>
